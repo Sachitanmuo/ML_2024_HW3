@@ -9,6 +9,10 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix
 import numpy as np
 
+import requests
+from pathlib import Path 
+from helper_functions import plot_predictions, plot_decision_boundary
+
 # Define the transform to normalize the data
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -25,7 +29,6 @@ testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, 
 testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, pin_memory=True)
 
 data = pd.read_csv("HW2_training.csv", delimiter=',').values
-print(data[0][1:])
 class CustomDataset(Dataset):
     def __init__(self, file_path):
         self.data = pd.read_csv(file_path, delimiter=',').values
@@ -80,11 +83,16 @@ class Model(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(2, 2),
             #nn.BatchNorm1d(2),
-            nn.Linear(2, 10),
-            nn.Linear(10, 10),
-            nn.Linear(10, 4),
+            nn.Linear(2, 20),
             #nn.ReLU(),
+            nn.Linear(20, 20),
+            #nn.ReLU(),
+            nn.Linear(20, 10),
+            #nn.Linear(10, 10),
+            #nn.ReLU(),
+            nn.Linear(10, 4),
             nn.Linear(4, 4),
+            #nn.ReLU()
             #nn.Softmax()
         )
     def forward(self, x):
@@ -173,14 +181,17 @@ def main():
     #parameters
     learning_rate = 0.01
     epochs = 100
-    '''
+ 
    #======== different nums of neurons ===============
     num_neurons_list = [5, 10, 20, 50, 75, 100]
     train_losses = []
     train_accuracies = []
     test_losses = []
     test_accuracies = []
-
+    train_loss = 0
+    train_acc = 0
+    test_loss = 0
+    test_acc = 0
     for num_neurons in num_neurons_list:
         model = Model_1(num_neurons)
         #model.to(device)
@@ -193,46 +204,50 @@ def main():
         test_acc_list = []
 
         for epoch in range(1, epochs + 1):
-            train_loss, train_acc = train_model(model, trainloader, optimizer, criterion, epoch)
-            test_loss, test_acc = test_model(model, testloader, criterion)
+            train_loss, train_acc, _, _ = train_model(model, trainloader, optimizer, criterion, epoch)
+            test_loss, test_acc, _, _ = test_model(model, testloader, criterion)
 
             train_loss_list.append(train_loss)
             train_acc_list.append(train_acc)
             test_loss_list.append(test_loss)
             test_acc_list.append(test_acc)
 
-        train_losses.append(train_loss_list)
-        train_accuracies.append(train_acc_list)
-        test_losses.append(test_loss_list)
-        test_accuracies.append(test_acc_list)
+        train_losses.append(train_loss)
+        train_accuracies.append(train_acc)
+        test_losses.append(test_loss)
+        test_accuracies.append(test_acc)
 
     # Plotting
     plt.figure(figsize=(12, 6))
-    for i, num_neurons in enumerate(num_neurons_list):
-        plt.subplot(2, 1, 1)
-        plt.plot(range(1, epochs + 1), train_accuracies[i], label='Neurons: {}'.format(num_neurons))
-        plt.xlabel('Epoch')
-        plt.ylabel('Training Accuracy')
-        plt.title('Training Accuracy vs. Epoch')
-        plt.legend()
-
-        plt.subplot(2, 1, 2)
-        plt.plot(range(1, epochs + 1), test_accuracies[i], label='Neurons: {}'.format(num_neurons))
-        plt.xlabel('Epoch')
-        plt.ylabel('Testing Accuracy')
-        plt.title('Testing Accuracy vs. Epoch')
-        plt.legend()
-
-
+    plt.plot(num_neurons_list, train_accuracies, label='Train Accuracy')
+    plt.plot(num_neurons_list, test_accuracies, label='Test Accuracy')
+    plt.xlabel('Number of Neurons')
+    plt.ylabel('Accuracy')
+    plt.title('Training and Testing Accuracy vs. Number of Neurons')
+    plt.legend()
     plt.tight_layout()
-    plt.savefig('Part_1.png')
+    plt.savefig('Part_1_Accuracy.png')
     plt.close()
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(num_neurons_list, train_losses, label='Train Loss')
+    plt.plot(num_neurons_list, test_losses, label='Test Loss')
+    plt.xlabel('Number of Neurons')
+    plt.ylabel('Loss')
+    plt.title('Loss vs. Number of Neurons')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('Part_1_Loss.png')
+    plt.close()
+
     #===============================================================
 
     #======== different nums of training datas ===============
     num_data_points_list = [500, 1000, 2000, 5000, 10000, 20000, 30000, 40000, 50000, 60000]
     train_accuracies = []
     test_accuracies = []
+    train_losses = []
+    test_losses = []
 
     for num_data_points in num_data_points_list:
         # Create subset of training data
@@ -247,39 +262,46 @@ def main():
 
         # Training loop
         for epoch in range(1, epochs + 1):
-            train_loss, train_acc = train_model(model, train_loader, optimizer, criterion, epoch)
-            test_loss, test_acc = test_model(model, testloader, criterion)
+            train_loss, train_acc, _, _ = train_model(model, train_loader, optimizer, criterion, epoch)
+            test_loss, test_acc, _, _ = test_model(model, testloader, criterion)
 
         train_accuracies.append(train_acc)
         test_accuracies.append(test_acc)
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
 
-    # Plotting for Training Accuracy
+    # Plotting for Training and Testing Accuracy
     plt.figure(figsize=(12, 6))
-    for i, num_neurons in enumerate(num_neurons_list):
-        plt.plot(range(1, epochs + 1), train_accuracies[i], label='Neurons: {}'.format(num_neurons))
-    plt.xlabel('Epoch')
-    plt.ylabel('Training Accuracy')
-    plt.title('Training Accuracy vs. Epoch')
+    plt.plot(num_data_points_list, train_accuracies, label='Train Accuracy')
+    plt.plot(num_data_points_list, test_accuracies, label='Test Accuracy')
+    plt.xlabel('Number of datas')
+    plt.ylabel('Accuracy')
+    plt.title('Training and Testing Accuracy vs. Number of datas')
     plt.legend()
     plt.tight_layout()
-    plt.savefig('Part_1_Training_Accuracy.png')
+    plt.savefig('Part_2_Accuracy.png')
     plt.close()
 
-    # Plotting for Testing Accuracy
     plt.figure(figsize=(12, 6))
-    for i, num_neurons in enumerate(num_neurons_list):
-        plt.plot(range(1, epochs + 1), test_accuracies[i], label='Neurons: {}'.format(num_neurons))
-    plt.xlabel('Epoch')
-    plt.ylabel('Testing Accuracy')
-    plt.title('Testing Accuracy vs. Epoch')
+    plt.plot(num_data_points_list, train_losses, label='Train Losses')
+    plt.plot(num_data_points_list, test_losses, label='Test Losses')
+    plt.xlabel('Number of datas')
+    plt.ylabel('Loss')
+    plt.title('Loss vs. Number of datas')
     plt.legend()
     plt.tight_layout()
-    plt.savefig('Part_1_Testing_Accuracy.png')
+    plt.savefig('Part_2_Loss.png')
     plt.close()
+
+
+
+    #===========Part 3==================================
     num_layers_list = [1, 2, 3, 4, 5]
 
     train_accuracies = []
     test_accuracies = []
+    train_losses = []
+    test_losses = []
 
     for num_layers in num_layers_list:
 
@@ -290,13 +312,16 @@ def main():
 
 
         for epoch in range(1, epochs + 1):
-            train_loss, train_acc = train_model(model, trainloader, optimizer, criterion, epoch)
-            test_loss, test_acc = test_model(model, testloader, criterion)
+            train_loss, train_acc, _, _ = train_model(model, trainloader, optimizer, criterion, epoch)
+            test_loss, test_acc, _, _ = test_model(model, testloader, criterion)
 
 
         train_accuracies.append(train_acc)
         test_accuracies.append(test_acc)
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
 
+    plt.clf()
     plt.plot(num_layers_list, train_accuracies, label='Training Accuracy')
     plt.plot(num_layers_list, test_accuracies, label='Testing Accuracy')
     plt.xlabel('Number of Hidden Layers')
@@ -304,12 +329,22 @@ def main():
     plt.title('Accuracy vs. Number of Hidden Layers')
     plt.legend()
     plt.tight_layout()
-    plt.savefig('Part_3.png')
+    plt.savefig('Part_3_Accuracy.png')
     plt.close()
- '''
 
+    plt.clf()
+    plt.plot(num_layers_list, train_losses, label='Training Loss')
+    plt.plot(num_layers_list, test_losses, label='Testing Loss')
+    plt.xlabel('Number of Hidden Layers')
+    plt.ylabel('Loss')
+    plt.title('Loss vs. Number of Hidden Layers')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('Part_3_loss.png')
+    plt.close()
+'''
     # ============ HW2 Dataset ========================
-    epochs = 1000
+    epochs = 100
     learning_rate = 1e-4
     train_path = 'HW2_training.csv'
     test_path  = 'HW2_testing.csv'
@@ -342,9 +377,11 @@ def main():
 
     print("Training Confusion Matrix:\n", train_conf_matrix)
     print("Testing Confusion Matrix:\n", test_conf_matrix)
-
-
-
+    train_data = pd.read_csv(train_path, delimiter=',').values
+    test_data = pd.read_csv(test_path, delimiter=',').values
+    plot_decision_boundary(model, torch.tensor(train_data[:, 1:]), torch.tensor(train_data[:, 0]), 'training_decision_boundaries')
+    plot_decision_boundary(model, torch.tensor(test_data[:, 1:]), torch.tensor(test_data[:, 0]), 'testing_decision_boundaries')
+'''
 if __name__ == '__main__':
     main()
     
