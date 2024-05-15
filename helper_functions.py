@@ -66,6 +66,40 @@ def plot_decision_boundary(model: torch.nn.Module, X: torch.Tensor, y: torch.Ten
     plt.ylim(yy.min(), yy.max())
     plt.savefig(name)
 # Plot linear data or training and test and predictions (optional)
+
+def plot_decision_boundary_(model: torch.nn.Module, X: torch.Tensor, y: torch.Tensor, name):
+    """Plots decision boundaries of model predicting on X in comparison to y.
+
+    Source - https://madewithml.com/courses/foundations/neural-networks/ (with modifications)
+    """
+    model.to("cpu")
+    X, y = X.to("cpu"), y.to("cpu")
+
+    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    xx, yy = np.meshgrid(np.linspace(x_min, x_max, 200), np.linspace(y_min, y_max, 200))
+
+    X_to_pred_on = torch.from_numpy(np.column_stack((xx.ravel(), yy.ravel()))).float()
+
+    model.eval()
+    with torch.inference_mode():
+        y_logits = model(X_to_pred_on)
+
+    if len(torch.unique(y)) > 2:
+        y_pred = torch.softmax(y_logits, dim=1).argmax(dim=1)
+    else:
+        y_pred = torch.round(torch.sigmoid(y_logits))
+
+    y_pred = y_pred.reshape(xx.shape).detach().numpy()
+    plt.clf()
+    plt.contourf(xx, yy, y_pred, cmap=plt.cm.RdYlBu, alpha=0.7)
+    plt.scatter(X[:, 0], X[:, 1], c=y, s=10, cmap=plt.cm.rainbow)
+    plt.xlim(xx.min(), xx.max())
+    plt.ylim(yy.min(), yy.max())
+    plt.show()
+
+
+
 def plot_predictions(
     train_data, train_labels, test_data, test_labels, predictions=None
 ):

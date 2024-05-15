@@ -11,8 +11,9 @@ import numpy as np
 
 import requests
 from pathlib import Path 
-from helper_functions import plot_predictions, plot_decision_boundary
+from helper_functions import plot_predictions, plot_decision_boundary, plot_decision_boundary_
 
+torch.set_num_threads(4)
 # Define the transform to normalize the data
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -52,13 +53,13 @@ class Model_1(nn.Module):
     def __init__(self, num_neurons):
         super(Model_1, self).__init__()
         self.hidden_layer = nn.Linear(28*28, num_neurons)
-        self.relu = nn.ReLU()
+        #self.relu = nn.ReLU()
         self.output_layer = nn.Linear(num_neurons, 10)
 
     def forward(self, x):
         x = x.view(-1, 28*28)  # Flatten the input
         x = self.hidden_layer(x)
-        x = self.relu(x)
+        #x = self.relu(x)
         x = self.output_layer(x)
         return x
 
@@ -68,13 +69,13 @@ class Model_2(nn.Module):
         super(Model_2, self).__init__()
         self.fc = nn.Linear(28*28, 100)
         self.fc2 = nn.Linear(100, 100)
-        self.relu = nn.ReLU()
+        #self.relu = nn.ReLU()
         self.fc3 = nn.Linear(100, 10)
 
     def forward(self, x):
         x = x.view(-1, 28*28)  # Flatten the input
         x = self.fc(x)
-        x = self.relu(x)
+        #x = self.relu(x)
         x = self.fc2(x)
         return x
 class Model(nn.Module):
@@ -82,18 +83,15 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.model = nn.Sequential(
             nn.Linear(2, 2),
-            #nn.BatchNorm1d(2),
             nn.Linear(2, 20),
-            #nn.ReLU(),
             nn.Linear(20, 20),
-            #nn.ReLU(),
+            nn.ReLU(),
             nn.Linear(20, 10),
-            #nn.Linear(10, 10),
-            #nn.ReLU(),
             nn.Linear(10, 4),
+            nn.ReLU(),
             nn.Linear(4, 4),
-            #nn.ReLU()
-            #nn.Softmax()
+            #nn.ReLU(),
+            nn.Softmax()
         )
     def forward(self, x):
         x = x.view(-1, 2)
@@ -165,14 +163,15 @@ class Model_3(nn.Module):
         for _ in range(num_layers - 1):
             self.hidden_layers.append(nn.Linear(100, 100))
         self.output_layer = nn.Linear(100, 10)
-        self.relu = nn.ReLU()
+        #self.relu = nn.ReLU()
 
     def forward(self, x):
         x = x.view(-1, 28*28)
         #x = x.to(device)
         x = self.input_layer(x)
         for layer in self.hidden_layers:
-            x = self.relu(layer(x))
+            #x = self.relu(layer(x))
+            x = layer(x)
         x = self.output_layer(x)
         return x
 
@@ -181,7 +180,7 @@ def main():
     #parameters
     learning_rate = 0.01
     epochs = 100
- 
+    '''
    #======== different nums of neurons ===============
     num_neurons_list = [5, 10, 20, 50, 75, 100]
     train_losses = []
@@ -241,7 +240,7 @@ def main():
     plt.close()
 
     #===============================================================
-
+    
     #======== different nums of training datas ===============
     num_data_points_list = [500, 1000, 2000, 5000, 10000, 20000, 30000, 40000, 50000, 60000]
     train_accuracies = []
@@ -342,12 +341,14 @@ def main():
     plt.tight_layout()
     plt.savefig('Part_3_loss.png')
     plt.close()
-'''
+    '''
     # ============ HW2 Dataset ========================
-    epochs = 100
+    epochs = 15000
     learning_rate = 1e-4
     train_path = 'HW2_training.csv'
     test_path  = 'HW2_testing.csv'
+    train_data = pd.read_csv(train_path, delimiter=',').values
+    test_data = pd.read_csv(test_path, delimiter=',').values
     dataset = CustomDataset(train_path)
     testset = CustomDataset(test_path)
     trainloader2 = DataLoader(dataset, batch_size=8, shuffle=False)
@@ -357,18 +358,21 @@ def main():
     train_accuracies = []
     test_losses = []
     test_accuracies = []
+    epoch_ = [i for i in range(100, epochs+1, 100)]
+    print(epoch_)
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
     for epoch in range(1, epochs + 1):
         train_loss, train_acc, _, _ = train_model(model, trainloader2, optimizer, criterion, epoch)
         test_loss, test_acc, _, _ = test_model(model, testloader2, criterion)
-        train_losses.append(train_loss)
-        train_accuracies.append(train_acc)
-        test_losses.append(test_loss)
-        test_accuracies.append(test_acc)
         if(epoch % 100 == 0):
             print('Epoch [%d] Train Loss: %.3f, Train Acc: %.3f' % (epoch, train_loss, train_acc))
             print('Epoch [%d] Test Loss: %.3f, Test Acc: %.3f' % (epoch, test_loss, test_acc))
+            #plot_decision_boundary_(model, torch.tensor(train_data[:, 1:]), torch.tensor(train_data[:, 0]), 'training_decision_boundaries')
+            train_losses.append(train_loss)
+            train_accuracies.append(train_acc)
+            test_losses.append(test_loss)
+            test_accuracies.append(test_acc)
     _, _, train_preds, train_targets = train_model(model, trainloader2, optimizer, criterion, epoch)
     _, _, test_preds, test_targets = test_model(model, testloader2, criterion)
 
@@ -377,11 +381,30 @@ def main():
 
     print("Training Confusion Matrix:\n", train_conf_matrix)
     print("Testing Confusion Matrix:\n", test_conf_matrix)
-    train_data = pd.read_csv(train_path, delimiter=',').values
-    test_data = pd.read_csv(test_path, delimiter=',').values
+
     plot_decision_boundary(model, torch.tensor(train_data[:, 1:]), torch.tensor(train_data[:, 0]), 'training_decision_boundaries')
     plot_decision_boundary(model, torch.tensor(test_data[:, 1:]), torch.tensor(test_data[:, 0]), 'testing_decision_boundaries')
-'''
+    plt.clf()
+    plt.plot(epoch_, train_accuracies, label='Training Loss')
+    plt.plot(epoch_, test_accuracies, label='Testing Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy vs. Epochs')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('HW2_Accuracy.png')
+    plt.close()
+
+    plt.clf()
+    plt.plot(epoch_, train_losses, label='Training Loss')
+    plt.plot(epoch_, test_losses, label='Testing Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Loss vs. Epochs')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('HW2_loss.png')
+    plt.close()
 if __name__ == '__main__':
     main()
     

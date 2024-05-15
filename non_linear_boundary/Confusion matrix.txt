@@ -1,0 +1,29 @@
+Training Confusion Matrix:
+ [[282   8  10   0]
+ [  6 234   0  10]
+ [  7   2 337   4]
+ [  0  12   6 382]]
+Testing Confusion Matrix:
+ [[177  18   5   0]
+ [  4 270   0  26]
+ [  6   1 119  24]
+ [  0   2   2  96]]
+
+ class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(2, 2),
+            nn.Linear(2, 20),
+            nn.Linear(20, 20),
+            nn.ReLU(),
+            nn.Linear(20, 10),
+            nn.Linear(10, 4),
+            nn.ReLU(),
+            nn.Linear(4, 4),
+            #nn.ReLU()
+            nn.Softmax()
+        )
+    def forward(self, x):
+        x = x.view(-1, 2)
+        return self.model(x)
