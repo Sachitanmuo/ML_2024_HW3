@@ -27,3 +27,7 @@ Testing Confusion Matrix:
     def forward(self, x):
         x = x.view(-1, 2)
         return self.model(x)
+
+
+Epoch [15000] Train Loss: 0.795, Train Acc: 94.846
+Epoch [15000] Test Loss: 0.863, Test Acc: 88.133

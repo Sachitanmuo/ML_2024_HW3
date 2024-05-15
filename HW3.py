@@ -85,7 +85,7 @@ class Model(nn.Module):
             nn.Linear(2, 2),
             nn.Linear(2, 20),
             nn.Linear(20, 20),
-            nn.ReLU(),
+            #nn.ReLU(),
             nn.Linear(20, 10),
             nn.Linear(10, 4),
             nn.ReLU(),
