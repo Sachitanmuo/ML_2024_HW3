@@ -13,7 +13,7 @@ import requests
 from pathlib import Path 
 from helper_functions import plot_predictions, plot_decision_boundary, plot_decision_boundary_
 
-torch.set_num_threads(4)
+#torch.set_num_threads(4)
 # Define the transform to normalize the data
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -33,9 +33,6 @@ data = pd.read_csv("HW2_training.csv", delimiter=',').values
 class CustomDataset(Dataset):
     def __init__(self, file_path):
         self.data = pd.read_csv(file_path, delimiter=',').values
-        #data = data.apply(pd.to_numeric, errors='coerce')
-        #data = data.dropna()
-        #self.data = data.values
     def __len__(self):
         return len(self.data)
 
@@ -43,6 +40,12 @@ class CustomDataset(Dataset):
         label = self.data[idx][0]
         features = self.data[idx][1:]
         return torch.tensor(features, dtype=torch.float), torch.tensor(label, dtype=torch.long)
+
+def setup_seed(seed):
+     torch.manual_seed(seed)
+     torch.cuda.manual_seed_all(seed)
+     np.random.seed(seed)
+     torch.backends.cudnn.deterministic = True
 
 
 #print(len(trainset))
@@ -53,14 +56,15 @@ class Model_1(nn.Module):
     def __init__(self, num_neurons):
         super(Model_1, self).__init__()
         self.hidden_layer = nn.Linear(28*28, num_neurons)
-        #self.relu = nn.ReLU()
+        self.relu = nn.ReLU()
         self.output_layer = nn.Linear(num_neurons, 10)
 
     def forward(self, x):
         x = x.view(-1, 28*28)  # Flatten the input
         x = self.hidden_layer(x)
-        #x = self.relu(x)
+        x = self.relu(x)
         x = self.output_layer(x)
+        
         return x
 
 # Neuron Network 2
@@ -69,13 +73,13 @@ class Model_2(nn.Module):
         super(Model_2, self).__init__()
         self.fc = nn.Linear(28*28, 100)
         self.fc2 = nn.Linear(100, 100)
-        #self.relu = nn.ReLU()
+        self.relu = nn.ReLU()
         self.fc3 = nn.Linear(100, 10)
 
     def forward(self, x):
         x = x.view(-1, 28*28)  # Flatten the input
         x = self.fc(x)
-        #x = self.relu(x)
+        x = self.relu(x)
         x = self.fc2(x)
         return x
 class Model(nn.Module):
@@ -90,7 +94,7 @@ class Model(nn.Module):
             nn.Linear(10, 4),
             nn.ReLU(),
             nn.Linear(4, 4),
-            #nn.ReLU(),
+            nn.ReLU(),
             nn.Softmax()
         )
     def forward(self, x):
@@ -162,7 +166,10 @@ class Model_3(nn.Module):
         self.hidden_layers = []
         for _ in range(num_layers - 1):
             self.hidden_layers.append(nn.Linear(100, 100))
-        self.output_layer = nn.Linear(100, 10)
+        self.output_layer = nn.Sequential(
+            nn.ReLU(),
+            nn.Linear(100, 10)
+        ) 
         #self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -179,7 +186,7 @@ class Model_3(nn.Module):
 def main():
     #parameters
     learning_rate = 0.01
-    epochs = 100
+    epochs = 20
     '''
    #======== different nums of neurons ===============
     num_neurons_list = [5, 10, 20, 50, 75, 100]
@@ -194,7 +201,7 @@ def main():
     for num_neurons in num_neurons_list:
         model = Model_1(num_neurons)
         #model.to(device)
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         criterion = nn.CrossEntropyLoss()
 
         train_loss_list = []
@@ -215,6 +222,9 @@ def main():
         train_accuracies.append(train_acc)
         test_losses.append(test_loss)
         test_accuracies.append(test_acc)
+
+    print(f"Part1 Training Accuracy:{train_accuracies}")
+    print(f"Part1 Testing Accuracy:{test_accuracies}")
 
     # Plotting
     plt.figure(figsize=(12, 6))
@@ -256,7 +266,7 @@ def main():
         # Define model
         model = Model_2()
         #model.to(device)
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         criterion = nn.CrossEntropyLoss()
 
         # Training loop
@@ -268,6 +278,9 @@ def main():
         test_accuracies.append(test_acc)
         train_losses.append(train_loss)
         test_losses.append(test_loss)
+
+    print(f"Part2 Training Accuracy:{train_accuracies}")
+    print(f"Part2 Testing Accuracy:{test_accuracies}")
 
     # Plotting for Training and Testing Accuracy
     plt.figure(figsize=(12, 6))
@@ -291,10 +304,9 @@ def main():
     plt.tight_layout()
     plt.savefig('Part_2_Loss.png')
     plt.close()
-
-
-
+    '''
     #===========Part 3==================================
+    learning_rate = 0.1
     num_layers_list = [1, 2, 3, 4, 5]
 
     train_accuracies = []
@@ -306,20 +318,24 @@ def main():
 
         model = Model_3(num_layers)
         #model.to(device)
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         criterion = nn.CrossEntropyLoss()
 
 
         for epoch in range(1, epochs + 1):
             train_loss, train_acc, _, _ = train_model(model, trainloader, optimizer, criterion, epoch)
             test_loss, test_acc, _, _ = test_model(model, testloader, criterion)
+            #print(f"training accuracy: {train_acc}")
+            #print(f"testing accuracy: {test_acc}")
 
 
         train_accuracies.append(train_acc)
         test_accuracies.append(test_acc)
         train_losses.append(train_loss)
         test_losses.append(test_loss)
-
+    
+    print(f"Part3 Training Accuracy:{train_accuracies}")
+    print(f"Part3 Testing Accuracy:{test_accuracies}")
     plt.clf()
     plt.plot(num_layers_list, train_accuracies, label='Training Accuracy')
     plt.plot(num_layers_list, test_accuracies, label='Testing Accuracy')
@@ -330,7 +346,7 @@ def main():
     plt.tight_layout()
     plt.savefig('Part_3_Accuracy.png')
     plt.close()
-
+    
     plt.clf()
     plt.plot(num_layers_list, train_losses, label='Training Loss')
     plt.plot(num_layers_list, test_losses, label='Testing Loss')
@@ -341,9 +357,10 @@ def main():
     plt.tight_layout()
     plt.savefig('Part_3_loss.png')
     plt.close()
-    '''
+
+    
     # ============ HW2 Dataset ========================
-    epochs = 15000
+    epochs = 10000
     learning_rate = 1e-4
     train_path = 'HW2_training.csv'
     test_path  = 'HW2_testing.csv'
@@ -360,7 +377,7 @@ def main():
     test_accuracies = []
     epoch_ = [i for i in range(100, epochs+1, 100)]
     print(epoch_)
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
     for epoch in range(1, epochs + 1):
         train_loss, train_acc, _, _ = train_model(model, trainloader2, optimizer, criterion, epoch)
@@ -382,6 +399,7 @@ def main():
     print("Training Confusion Matrix:\n", train_conf_matrix)
     print("Testing Confusion Matrix:\n", test_conf_matrix)
 
+    print(model)
     plot_decision_boundary(model, torch.tensor(train_data[:, 1:]), torch.tensor(train_data[:, 0]), 'training_decision_boundaries')
     plot_decision_boundary(model, torch.tensor(test_data[:, 1:]), torch.tensor(test_data[:, 0]), 'testing_decision_boundaries')
     plt.clf()
@@ -405,6 +423,8 @@ def main():
     plt.tight_layout()
     plt.savefig('HW2_loss.png')
     plt.close()
+
 if __name__ == '__main__':
+    setup_seed(2024)
     main()
     
